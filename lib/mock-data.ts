@@ -172,24 +172,163 @@ const EMAIL_BODIES = [
     'Hi {first},\n\nLast note from me on this. If energy and facilities optimisation is not a priority for {company} this year, no problem — I will close the loop.\n\nIf it is, I can hold a survey slot for the coming month.\n\nRegards,\nNadia Haddad\nRG Group Dubai',
 ];
 
-const CALL_SUMMARIES = [
-    'Contact confirmed they handle facilities procurement and requested a proposal by email.',
-    'Reached voicemail, no live conversation. Left a short message about the energy audit.',
-    'Contact was in a meeting and asked for a callback later in the week.',
-    'Positive conversation — contact interested in a rooftop solar feasibility study for their warehouse.',
-    'Contact stated they are locked into an existing contract until next year but agreed to a reminder.',
-    'Wrong number, the person reached is not associated with the company.',
-    'Contact asked detailed questions about payback period and DEWA approval timelines. Qualified.',
-    'Short call, contact declined and asked not to be contacted again.',
-    'Gatekeeper answered and provided the facilities manager direct line.',
-    'Contact requested pricing for LED retrofit across three sites. Follow up scheduled.',
+// ── Call transcripts, grouped by outcome ─────────────────────────────────────
+// Each entry is a full multi-turn AI/User conversation matched to a specific
+// call outcome, so the summary, status and transcript always tell one coherent
+// story instead of being picked independently.
+
+interface CallScript {
+    summary: string;
+    transcript: string;
+}
+
+const POSITIVE_SCRIPTS: CallScript[] = [
+    {
+        summary: 'Positive conversation — contact interested in a rooftop solar feasibility study for their warehouse.',
+        transcript:
+            "AI: Hi, this is Tara calling from RG Group Dubai. Am I speaking with the facilities manager?\n" +
+            "User: Yes, speaking. Who's this again?\n" +
+            "AI: Tara, from RG Group Dubai — we help UAE facilities cut energy spend through solar PV and retrofit programmes. Do you have two minutes?\n" +
+            "User: Sure, go ahead.\n" +
+            "AI: Great. We recently completed a rooftop solar install in Al Quoz with a payback under four years. Do you own or lease your warehouse roof space?\n" +
+            "User: We own the building, about 40,000 square feet of roof.\n" +
+            "AI: Perfect, that's a strong candidate size. Would you be open to a free feasibility study — no cost, just a site visit and a report?\n" +
+            "User: Yeah, that sounds useful actually. We've been looking at ways to cut our DEWA bill.\n" +
+            "AI: Wonderful. I'll get one of our engineers to call you to schedule the site visit. Is this number the best one to reach you on?\n" +
+            "User: Yes, this is my direct line.\n" +
+            "AI: Perfect, thank you for your time today.\n" +
+            "User: No problem, talk soon.",
+    },
+    {
+        summary: 'Contact asked detailed questions about payback period and DEWA approval timelines. Qualified.',
+        transcript:
+            "AI: Good afternoon, this is Tara from RG Group Dubai calling about your facility's energy spend.\n" +
+            "User: Oh hi, yes I've heard of you — one of our suppliers mentioned RG Group.\n" +
+            "AI: That's great to hear. We specialise in HVAC retrofits and LED upgrades for commercial facilities across Dubai. Can I ask what your current biggest utility cost driver is?\n" +
+            "User: Honestly it's the chillers, they're original to the building from 2011.\n" +
+            "AI: That tracks — older chiller plants are usually 30-40% less efficient than current units. What kind of payback period would make this worth pursuing for you?\n" +
+            "User: Anything under five years and I can take it to the board.\n" +
+            "AI: We're typically seeing three to four years on chiller optimisation projects in this size range. There's also a DEWA approval process — do you know roughly how long that took last time you did any facility upgrade?\n" +
+            "User: About six weeks for our last project.\n" +
+            "AI: Good, that lines up with what we usually see. I'll have our technical team put together a proposal with the numbers for your board.\n" +
+            "User: Perfect, send it to my email and I'll take a look.\n" +
+            "AI: Will do, thanks so much for your time.",
+    },
+    {
+        summary: 'Contact requested pricing for LED retrofit across three sites. Follow up scheduled.',
+        transcript:
+            "AI: Hello, this is Tara calling from RG Group Dubai regarding energy efficiency for your sites.\n" +
+            "User: Yes hi, go ahead.\n" +
+            "AI: Thanks. I understand you manage facilities across a few locations — is that right?\n" +
+            "User: Yes, three sites, two in Dubai and one in Sharjah.\n" +
+            "AI: We could bundle those into one LED retrofit programme, which usually brings the per-site cost down. Would pricing across all three be useful to see?\n" +
+            "User: Yes, that would actually help a lot for budgeting next quarter.\n" +
+            "AI: I'll get that quote prepared and have someone follow up with you early next week.\n" +
+            "User: Sounds good, thank you.\n" +
+            "AI: Thank you, have a great day.",
+    },
+    {
+        summary: 'Contact confirmed budget was recently approved and wants to move to a site visit next week.',
+        transcript:
+            "AI: Hi, this is Tara from RG Group Dubai, calling about the facilities energy programme.\n" +
+            "User: Hi Tara, actually good timing — we just got budget approved for this exact thing.\n" +
+            "AI: That's excellent news. What's the scope you're looking at?\n" +
+            "User: Mainly HVAC and some lighting across our main building.\n" +
+            "AI: We can cover both in one assessment. Would next week work for a site visit?\n" +
+            "User: Yes, Tuesday or Wednesday morning works for us.\n" +
+            "AI: I'll lock in Tuesday morning and send a confirmation with the engineer's details.\n" +
+            "User: Perfect, appreciate it.\n" +
+            "AI: Thank you, see you then.",
+    },
 ];
 
-const CALL_TRANSCRIPTS = [
-    'AI: Hello, this is Aya calling from RG Group Dubai. Am I speaking with the facilities manager?\nUser: Yes, speaking.\nAI: Great — we help UAE facilities cut energy spend. Do you have two minutes?\nUser: Go ahead.',
-    'AI: Hi, this is Aya from RG Group Dubai.\nUser: Sorry, who?\nAI: RG Group Dubai — we work on energy efficiency for facilities in the UAE.\nUser: Send me an email please.',
-    'AI: Good morning, this is Aya from RG Group Dubai calling about your facilities energy spend.\nUser: Not interested, thank you.\nAI: Understood, have a good day.',
-    '',
+const NEUTRAL_SCRIPTS: CallScript[] = [
+    {
+        summary: 'Contact was in a meeting and asked for a callback later in the week.',
+        transcript:
+            "AI: Hi, this is Tara calling from RG Group Dubai about your facility's energy costs.\n" +
+            "User: Hi, sorry I'm actually heading into a meeting right now.\n" +
+            "AI: No problem at all — would later this week work better for a quick call?\n" +
+            "User: Thursday afternoon should be fine.\n" +
+            "AI: Great, I'll note that down and call back Thursday afternoon.\n" +
+            "User: Sounds good, thanks.",
+    },
+    {
+        summary: 'Gatekeeper answered and provided the facilities manager direct line.',
+        transcript:
+            "AI: Good morning, this is Tara from RG Group Dubai. Could I speak with whoever handles facilities or utilities decisions?\n" +
+            "User: That would be our operations manager, but he's not at his desk.\n" +
+            "AI: Understood — would you be able to share his direct line or best time to reach him?\n" +
+            "User: Sure, try after 2pm, he's usually back from site visits by then.\n" +
+            "AI: Perfect, thank you very much for your help.\n" +
+            "User: No problem, bye.",
+    },
+    {
+        summary: 'Contact stated they are locked into an existing contract until next year but agreed to a reminder.',
+        transcript:
+            "AI: Hi, this is Tara calling from RG Group Dubai regarding energy efficiency services.\n" +
+            "User: Oh, we actually already have a facilities contractor for this.\n" +
+            "AI: Understood — is that a fixed-term contract, or would you be open to comparing quotes at renewal?\n" +
+            "User: It runs until around March next year, so not really worth switching now.\n" +
+            "AI: That's fair, would it be alright if we followed up closer to your renewal date?\n" +
+            "User: Yeah, that's fine, give us a call in February.\n" +
+            "AI: Will do, thank you for your time.",
+    },
+    {
+        summary: 'Contact confirmed they handle facilities procurement and requested a proposal by email.',
+        transcript:
+            "AI: Hello, this is Tara calling from RG Group Dubai. Am I speaking with the right person for facilities procurement?\n" +
+            "User: Yes, that's me.\n" +
+            "AI: Great — we specialise in energy audits and retrofit programmes for UAE commercial facilities. Would it be alright to send over a proposal by email first?\n" +
+            "User: Sure, that works better for me than a call right now.\n" +
+            "AI: No problem, I'll get that sent across today.\n" +
+            "User: Thanks, I'll take a look when it arrives.",
+    },
+];
+
+const NEGATIVE_SCRIPTS: CallScript[] = [
+    {
+        summary: 'Short call, contact declined and asked not to be contacted again.',
+        transcript:
+            "AI: Hi, this is Tara calling from RG Group Dubai about facility energy savings.\n" +
+            "User: No thank you, we're not interested.\n" +
+            "AI: Understood, I'll make sure you're not contacted again. Have a good day.\n" +
+            "User: Thanks, bye.",
+    },
+    {
+        summary: 'Wrong number, the person reached is not associated with the company.',
+        transcript:
+            "AI: Hello, is this the facilities team at Marina Bay Contracting?\n" +
+            "User: No, sorry, wrong number. I don't know that company.\n" +
+            "AI: Apologies for the confusion, thank you and have a good day.\n" +
+            "User: No worries, bye.",
+    },
+    {
+        summary: 'Contact was abrupt and ended the call quickly, citing no budget for new projects this year.',
+        transcript:
+            "AI: Hi, this is Tara from RG Group Dubai calling about energy efficiency for your facility.\n" +
+            "User: We don't have budget for anything new this year, sorry.\n" +
+            "AI: Understood, thanks for letting me know — have a good day.\n" +
+            "User: Bye.",
+    },
+];
+
+const VOICEMAIL_SCRIPTS: CallScript[] = [
+    {
+        summary: 'Reached voicemail, no live conversation. Left a short message about the energy audit.',
+        transcript:
+            "AI: Hi, this is Tara calling from RG Group Dubai. We help UAE facilities reduce energy costs through solar and retrofit programmes. Please give us a call back at your convenience, thank you.",
+    },
+    {
+        summary: 'Reached voicemail. Left a message referencing the recent rooftop solar project in Al Quoz.',
+        transcript:
+            "AI: Hello, this is Tara with RG Group Dubai. We recently completed a rooftop solar project nearby in Al Quoz with strong results, and wanted to see if a similar assessment could help your facility. Feel free to call us back, thanks so much.",
+    },
+];
+
+const CALL_SUMMARIES = [
+    ...POSITIVE_SCRIPTS.map(s => s.summary),
+    ...NEUTRAL_SCRIPTS.map(s => s.summary),
 ];
 
 // Real-looking assistant IDs already referenced across the codebase.
@@ -489,17 +628,24 @@ export function generateMockLeads(count: number, seed = SEED): any[] {
         }
 
         // ── Voice calls ───────────────────────────────────────────────────────
+        let lastVoiceScript: CallScript | null = null;
+        let lastVoiceDuration = 0;
         for (let n = 1; n <= voiceCount; n++) {
             const ts = isoPlusHours(createdAt, 24 + (n - 1) * 60 + rng.float(0, 10, 1));
-            row[`Voice ${n}`] = rng.pick(CALL_SUMMARIES);
+            const outcomeRoll = rng.next();
+            const pool = outcomeRoll < 0.4 ? POSITIVE_SCRIPTS : outcomeRoll < 0.75 ? NEUTRAL_SCRIPTS : NEGATIVE_SCRIPTS;
+            lastVoiceScript = rng.pick(pool);
+            lastVoiceDuration = rng.int(25, 240);
+            row[`Voice ${n}`] = lastVoiceScript.summary;
             row['voice_last_contacted'] = ts;
             lastContact = ts;
         }
-        if (voiceCount > 0) {
+        if (voiceCount > 0 && lastVoiceScript) {
             row['voice_sentiment'] = rng.pick(SENTIMENTS);
-            row['voice_note'] = rng.pick(CALL_SUMMARIES);
+            row['voice_note'] = lastVoiceScript.summary;
             row['call_lead_status'] = rng.pick(['Answered', 'No Answer', 'Voicemail', 'Callback Requested']);
             row['Call_replied_track'] = rng.chance(0.4) ? 'Yes' : 'No';
+            row['call_recording_url'] = pickRecordingFor(lastVoiceDuration, rng, false);
             if (rng.chance(0.3)) {
                 row['callback_date'] = isoPlusHours(ts_safe(lastContact), rng.int(24, 168));
             }
@@ -686,6 +832,21 @@ export function generateMockNurtureLeads(count: number, seed = SEED + 1): any[] 
 // vapi_call_logs
 // ═════════════════════════════════════════════════════════════════════════════
 
+// Locally-hosted placeholder call recordings (synthetic voice-like audio — no real
+// call audio exists in demo mode). Bucketed roughly by length so a call's assigned
+// recording is at least in the right ballpark for its duration.
+const SAMPLE_RECORDINGS_SHORT = ['/audio/sample-call-4.wav', '/audio/sample-call-6.wav'];
+const SAMPLE_RECORDINGS_MEDIUM = ['/audio/sample-call-1.wav', '/audio/sample-call-2.wav'];
+const SAMPLE_RECORDINGS_LONG = ['/audio/sample-call-3.wav', '/audio/sample-call-5.wav'];
+const SAMPLE_RECORDINGS_VOICEMAIL = ['/audio/sample-voicemail-1.wav'];
+
+function pickRecordingFor(duration: number, rng: ReturnType<typeof makeRng>, isVoicemail: boolean): string {
+    if (isVoicemail) return rng.pick(SAMPLE_RECORDINGS_VOICEMAIL);
+    if (duration <= 25) return rng.pick(SAMPLE_RECORDINGS_SHORT);
+    if (duration <= 70) return rng.pick(SAMPLE_RECORDINGS_MEDIUM);
+    return rng.pick(SAMPLE_RECORDINGS_LONG);
+}
+
 export function generateMockCalls(count: number, seed = SEED + 2): any[] {
     const rng = makeRng(seed);
     const rows: any[] = [];
@@ -697,9 +858,10 @@ export function generateMockCalls(count: number, seed = SEED + 2): any[] {
 
         const status = rng.pick(CALL_STATUSES);
         const answered = status === 'ended' || status === 'customer-ended-call';
+        const isVoicemail = status === 'voicemail';
         const duration = answered
             ? rng.int(20, 600)
-            : status === 'voicemail'
+            : isVoicemail
                 ? rng.int(8, 35)
                 : rng.int(0, 6);
 
@@ -710,6 +872,17 @@ export function generateMockCalls(count: number, seed = SEED + 2): any[] {
         const isElevenLabs = rng.chance(0.08);
         const type = rng.chance(0.82) ? 'outboundPhoneCall' : 'inboundPhoneCall';
 
+        // Pick a script whose outcome matches the call's status, so summary/transcript/
+        // status always tell one coherent story.
+        let script: CallScript | null = null;
+        if (isVoicemail) {
+            script = rng.pick(VOICEMAIL_SCRIPTS);
+        } else if (answered) {
+            const outcomeRoll = rng.next();
+            const pool = outcomeRoll < 0.4 ? POSITIVE_SCRIPTS : outcomeRoll < 0.75 ? NEUTRAL_SCRIPTS : NEGATIVE_SCRIPTS;
+            script = rng.pick(pool);
+        }
+
         rows.push({
             id: makeUuid(rng),
             started_at: startedAt,
@@ -719,10 +892,12 @@ export function generateMockCalls(count: number, seed = SEED + 2): any[] {
             status,
             cost_usd: cost,
             source: isElevenLabs ? 'elevenlabs' : 'vapi',
-            transcript: answered ? rng.pick(CALL_TRANSCRIPTS) : '',
-            summary: answered || status === 'voicemail' ? rng.pick(CALL_SUMMARIES) : '',
-            // No real audio exists in mock mode — the UI audio player will show no source.
-            recording_url: '',
+            transcript: script?.transcript || '',
+            summary: script?.summary || '',
+            // Local synthetic placeholder audio — no real call recordings exist in demo mode,
+            // but the player needs a genuinely playable source, so every answered/voicemail
+            // call gets a duration-matched sample file.
+            recording_url: (answered || isVoicemail) ? pickRecordingFor(duration, rng, isVoicemail) : '',
             vapi_account: rng.chance(0.58) ? 'B2B' : 'B2C',
             assistantId,
             type,
